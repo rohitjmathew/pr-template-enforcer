@@ -31,4 +31,6 @@ jobs:
           jira-pattern: '^[A-Z]+-\d+'
           skip-users: '["dependabot[bot]"]'
           skip-service-accounts: '["github-actions[bot]"]'
+          require-task-completion: 'true'
+          enforce-template: 'true'
           label-name: 'needs-more-info'
