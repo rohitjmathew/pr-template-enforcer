@@ -3,6 +3,7 @@ PR Template Enforcer
 
 A GitHub Action to enforce pull request template compliance and standardize PR descriptions across your repositories.
 
+TEST
 Features
 --------
 
