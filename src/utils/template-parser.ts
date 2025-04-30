@@ -118,9 +118,7 @@ export async function getPRTemplate(
       'pull_request_template.md',
       'docs/PULL_REQUEST_TEMPLATE.md',
       'docs/pull_request_template.md',
-      '.github/PULL_REQUEST_TEMPLATE/default.md',
-      // Add your actual path if different from above
-      '.github/pull_request_template.md'
+      '.github/PULL_REQUEST_TEMPLATE/default.md'
     ];
 
     for (const path of templatePaths) {
