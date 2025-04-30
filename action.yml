@@ -1,0 +1,52 @@
+name: 'PR Template Enforcer'
+description: 'Enforces compliance with PR templates and ensures standardized PR descriptions'
+author: 'Rohit Mathew'
+
+inputs:
+  github-token:
+    description: 'GitHub token used to interact with the GitHub API'
+    required: true
+    default: ${{ github.token }}
+  
+  required-sections:
+    description: 'JSON array of section headings that must be present in the PR description'
+    required: false
+    default: '["## Summary", "## Changes", "## Testing"]'
+  
+  jira-pattern:
+    description: 'Regular expression pattern for validating JIRA ticket references (leave empty to skip validation)'
+    required: false
+    default: '^[A-Z]+-\\d+'
+  
+  skip-users:
+    description: 'JSON array of GitHub usernames to skip validation for'
+    required: false
+    default: '["dependabot[bot]", "github-actions[bot]"]'
+  
+  skip-service-accounts:
+    description: 'JSON array of substrings to identify service accounts to skip validation for'
+    required: false
+    default: '["bot", "dependabot", "renovate", "github-actions"]'
+  
+  label-name:
+    description: 'Label to apply to PRs that do not comply with the template'
+    required: false
+    default: 'needs-description'
+    
+  enforce-template:
+    description: 'Whether to enforce the repository PR template structure'
+    required: false
+    default: 'true'
+  
+  require-task-completion:
+    description: 'Whether to require at least one task list item to be completed in each section'
+    required: false
+    default: 'false'
+
+runs:
+  using: 'node16'
+  main: 'dist/index.js'
+
+branding:
+  icon: 'check-square'
+  color: 'blue'

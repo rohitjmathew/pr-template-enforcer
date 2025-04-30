@@ -1,0 +1,34 @@
+name: PR Template Enforcer
+
+on:
+  pull_request:
+    types: [opened, edited, reopened]
+
+jobs:
+  enforce-template:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 16
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Run PR Template Enforcer
+        uses: ./
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          required-sections: '["## Summary", "## Changes", "## Testing"]'
+          jira-pattern: '^[A-Z]+-\d+'
+          skip-users: '["dependabot[bot]"]'
+          skip-service-accounts: '["github-actions[bot]"]'
+          label-name: 'needs-more-info'
