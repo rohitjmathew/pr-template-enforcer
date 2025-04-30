@@ -27,7 +27,7 @@ jobs:
         uses: ./
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          required-sections: '["## Summary", "## Changes", "## Testing"]'
+          required-sections: '["## Summary", "## Type of Change", "## Testing"]'
           jira-pattern: '^[A-Z]+-\d+'
           skip-users: '["dependabot[bot]"]'
           skip-service-accounts: '["github-actions[bot]"]'
