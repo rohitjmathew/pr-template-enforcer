@@ -107,6 +107,9 @@ export async function getPRTemplate(
   repo: string
 ): Promise<string | null> {
   try {
+    // Log attempt to find template
+    core.info(`Searching for PR template in repository ${owner}/${repo}...`);
+    
     // Check for the template in common locations
     const templatePaths = [
       '.github/PULL_REQUEST_TEMPLATE.md',
@@ -115,11 +118,15 @@ export async function getPRTemplate(
       'pull_request_template.md',
       'docs/PULL_REQUEST_TEMPLATE.md',
       'docs/pull_request_template.md',
-      '.github/PULL_REQUEST_TEMPLATE/default.md'
+      '.github/PULL_REQUEST_TEMPLATE/default.md',
+      // Add your actual path if different from above
+      '.github/pull_request_template.md'
     ];
 
     for (const path of templatePaths) {
       try {
+        core.debug(`Checking for PR template at: ${path}`);
+        
         const response = await octokit.rest.repos.getContent({
           owner,
           repo,
@@ -128,9 +135,21 @@ export async function getPRTemplate(
         
         if ('content' in response.data && 'encoding' in response.data) {
           const content = Buffer.from(response.data.content, response.data.encoding as BufferEncoding).toString();
+          core.info(`✓ Found PR template at path: ${path}`);
           return content;
+        } else {
+          core.debug(`Found file at ${path} but content or encoding is missing`);
         }
       } catch (error) {
+        // Provide more detailed logging for debugging
+        if (error instanceof Error) {
+          if (error.message.includes('404')) {
+            core.debug(`Template not found at path: ${path}`);
+          } else {
+            core.debug(`Error accessing ${path}: ${error.message}`);
+          }
+        }
+        
         // Ignore 404 errors - try the next path
         if (error instanceof Error && error.message.includes('404')) {
           continue;
@@ -139,9 +158,13 @@ export async function getPRTemplate(
       }
     }
     
+    core.warning(`No PR template found in any of the standard locations in ${owner}/${repo}`);
     return null;
   } catch (error) {
     core.warning(`Error fetching PR template: ${error instanceof Error ? error.message : String(error)}`);
+    if (error instanceof Error && error.stack) {
+      core.debug(`Stack trace: ${error.stack}`);
+    }
     return null;
   }
 }
