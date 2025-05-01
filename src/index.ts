@@ -31,7 +31,7 @@ export async function run(): Promise<void> {
         const jiraPattern = core.getInput('jira-pattern') || '';
         const labelName = core.getInput('label-name') || 'invalid-template';
         const enforceTemplate = core.getBooleanInput('enforce-template') || false;
-        const requireTaskCompletion = core.getBooleanInput('require-task-completion') || false;
+        const requireTaskCompletion = core.getBooleanInput('require-task-completion');
 
         // Initialize GitHub API handler
         const githubApi = new GitHubApi(token, labelName);
@@ -60,7 +60,7 @@ export async function run(): Promise<void> {
             }
         }
 
-        // Initialize and run checker
+
         const templateChecker = new TemplateChecker({
             requiredSections,
             jiraPattern,
@@ -68,6 +68,7 @@ export async function run(): Promise<void> {
             requireTaskListsCompletion: requireTaskCompletion
         });
 
+        // Make sure validation results are properly processed
         const validationResult = templateChecker.validateDescription(pullRequest.body || '', pullRequest.title || '');
 
         if (!validationResult.isValid) {

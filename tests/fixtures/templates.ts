@@ -81,20 +81,13 @@ Fixed bug in authentication flow.
   },
 
   emptySection: {
-    template: `
-## Summary
-Provide a brief overview.
+    template: '## Testing\nDescribe your tests here',
+    description: '## Testing\n'  // Make sure it's truly empty
+  },
 
-## Testing
-Describe tests.
-`,
-    description: `
-## Summary
-This is the summary.
-
-## Testing
-TODO
-`
+  unmodifiedTemplate: {
+    template: '## Summary\nProvide a brief description of the changes',
+    description: '## Summary\nProvide a brief description of the changes'  // Identical to template
   },
 
   fillThisIn: {
@@ -150,15 +143,35 @@ This is the summary.
 `
   },
 
-  markdownWithComments: `
-# Title 1
+  minimalContent: {
+    template: `
+## Summary
+Provide a brief summary of your changes
+
+## Details
+Provide detailed information
+
+## Testing
+Explain how you tested these changes
+`,
+    description: `
+## Summary
+-
+
+## Details
+This section has valid content.
+
+## Testing
+   
+`
+  },
+
+  markdownWithComments: `## Section 1
 <!-- This is a comment -->
 Content
 
-## Title 2
-<!-- Another comment -->
-Content 2
-`,
+## Section 2
+More content<!-- Another comment -->`,
 
   withTaskLists: {
     template: `
@@ -193,6 +206,11 @@ This PR is ready for review.
     }
   },
 
+  uncheckedTasks: {
+    template: '## Checklist\n- [ ] Task 1\n- [ ] Task 2',
+    description: '## Checklist\n- [ ] Task 1\n- [ ] Task 2'  // No tasks checked
+  },
+
   // Add templates for branch coverage tests
   branchCoverage: {
     emptyContent: {
@@ -219,6 +237,12 @@ Some content without task items
 ## Section with * special [ characters ] that might (cause) regex /issues/
 Content
 `
+  },
+
+  // Update or create this fixture
+  compliantPR: {
+    template: '## Description\nProvide a description of the changes\n\n## Changes\nList all changes made',
+    description: '## Description\nThis is a valid description that is completely different from the template text.\n\n## Changes\nThese are valid changes that pass validation and are not similar to the template.'
   }
 };
 
