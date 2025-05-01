@@ -65,6 +65,32 @@ jobs:
 
 ---
 
+### Required Permissions
+
+This action needs the following permissions to function correctly:
+
+| Permission | Access Level | Description |
+| --- | --- | --- |
+| `contents` | `read` | Required to read the PR template files from your repository |
+| `pull-requests` | `write` | Required to add labels to pull requests and post comments |
+
+### Setting Custom Permissions
+
+If you're using a restricted GitHub token or custom permissions setup, make sure these permissions are granted in your workflow file as shown in the example above.
+
+```yaml
+# Add these permissions to your workflow
+permissions:
+  contents: read
+  pull-requests: write
+```
+
+For GitHub Enterprise or repositories with restricted settings, you may need to explicitly enable these permissions in your organization's settings.
+
+For more information on GitHub Actions permissions, see the [GitHub documentation on workflow permissions](vscode-file://vscode-app/Applications/Visual%20Studio%20Code.app/Contents/Resources/app/out/vs/code/electron-sandbox/workbench/workbench.html).
+
+---
+
 ## Configuration Options
 
 | Input                   | Description                                               | Required | Default                        |
