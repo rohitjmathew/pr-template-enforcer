@@ -1,23 +1,45 @@
-PR Template Enforcer
-====================
+# PR Template Enforcer
 
-A GitHub Action to enforce pull request template compliance and standardize PR descriptions across your repositories.
+A GitHub Action to enforce pull request template compliance and standardize PR descriptions across repositories.
 
-Features
---------
+## Key Features
 
--   Validates pull request descriptions against required sections
--   Enforces repository PR template structure
--   Supports JIRA ticket reference validation in PR titles
--   Validates task list completion
--   Allows skipping validation for specific users and service accounts
--   Automatically labels non-compliant pull requests
--   Provides detailed feedback on missing or invalid sections
+- **Required Section Validation**: Ensures all required sections exist and aren't empty.
+- **Smart Content Similarity Detection**: Uses a diff algorithm to detect when PR descriptions contain unmodified template content.
+- **Task List Verification**: Validates that at least one checkbox is marked as complete (optional).
+- **HTML Comment Stripping**: Ignores instructional comments when validating content.
+- **Case-Insensitive Matching**: Handles variations in section title casing.
+- **JIRA Ticket Reference Validation**: Validates PR titles against JIRA ticket patterns.
+- **Skip Validation for Specific Users or Service Accounts**: Allows skipping validation for automation bots or specific accounts.
+- **Automatic Labeling**: Labels non-compliant pull requests for easy identification.
 
-Usage
------
+---
 
-Add this action to your repository by creating `.github/workflows/pr-template.yml`:
+## How It Works
+
+### Section Validation
+
+The enforcer checks that all required sections:
+1. Exist in the PR description.
+2. Aren't left empty.
+3. Don't contain unmodified template content.
+4. Have at least one task list item checked (when `require-task-completion` is enabled).
+
+### Smart Content Similarity Detection
+
+This feature uses the `diff` library to compare PR description content with the original template to ensure contributors haven't left template instructions unmodified.
+
+1. **Basic Comparison**: Checks if content exactly matches the template.
+2. **Diffing Algorithm**:
+   - Breaks text into "word chunks" and identifies unchanged, added, and removed parts.
+   - Produces a similarity score between 0 and 1 (0% to 100% similar).
+3. **Threshold Check**: Content with >95% similarity to the template is flagged as unmodified.
+
+---
+
+## Usage
+
+Add this action to your repository by creating `.github/workflows/pr-template.yml`:
 
 ```yaml
 name: PR Template Check
@@ -29,223 +51,92 @@ jobs:
   check-template:
     runs-on: ubuntu-latest
     steps:
-      - uses: rohitjmathew/pr-template-enforcer-action@main
+      - uses: rohitjmathew/pr-template-enforcer@v1
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           required-sections: '["## Summary", "## Changes", "## Testing"]'
-          jira-pattern: ^[A-Z]+-\d+
+          jira-pattern: '^[A-Z]+-\d+'
           skip-users: '["dependabot[bot]"]'
           skip-service-accounts: '["github-actions[bot]"]'
-          label-name: needs-more-info
-
+          require-task-completion: 'true'
+          enforce-template: 'true'
+          label-name: 'needs-more-info'
 ```
 
-Configuration
--------------
+---
 
-### Inputs
+## Configuration Options
 
-| Input | Required | Default | Description |
-| --- | --- | --- | --- |
-| `github-token` | Yes | N/A | GitHub token used for API access. Must have permissions to read PRs and add labels |
-| `required-sections` | No | `'["## Summary", "## Changes", "## Testing"]'` | JSON array of section headers that must be present in PR description |
-| `jira-pattern` | No | `'^[A-Z]+-\\d+'` | Regular expression pattern to validate JIRA ticket references in PR title |
-| `skip-users` | No | `'["dependabot[bot]", "github-actions[bot]"]'` | JSON array of GitHub usernames to skip validation |
-| `skip-service-accounts` | No | `'["bot", "dependabot", "renovate", "github-actions"]'` | JSON array of substrings to identify service accounts to skip validation |
-| `label-name` | No | `'needs-description'` | Name of the label to apply to non-compliant pull requests |
-| `enforce-template` | No | `'true'` | Whether to enforce the repository PR template structure |
-| `require-task-completion` | No | `'false'` | Whether to require at least one task list item to be completed in each section |
+| Input                   | Description                                               | Required | Default                        |
+|-------------------------|-----------------------------------------------------------|----------|--------------------------------|
+| `github-token`          | GitHub token used to access repository content.           | Yes      | N/A                            |
+| `required-sections`     | JSON array of section headers that must be present.       | No       | `["## Summary", "## Changes", "## Testing"]` |
+| `jira-pattern`          | Regular expression to validate JIRA ticket references.    | No       | `'^[A-Z]+-\d+'`                |
+| `skip-users`            | JSON array of GitHub usernames to skip validation.        | No       | `["dependabot[bot]"]`          |
+| `skip-service-accounts` | JSON array of substrings to identify service accounts.    | No       | `["bot", "dependabot"]`        |
+| `enforce-template`      | Whether to enforce template structure.                   | No       | `true`                         |
+| `require-task-completion` | Require at least one checked task list item.           | No       | `false`                        |
+| `label-name`            | Label to apply to non-compliant PRs.                      | No       | `'needs-description'`          |
 
-### Pull Request Template
+---
 
-When using the `enforce-template` input set to `true`, the action will look for a PR template in your repository and validate PR descriptions against it. This ensures contributors follow your project's standardized format.
+## Debugging
 
-Create a `.github/pull_request_template.md` file in your repository. Here's the template included with this project:
+The action provides detailed logs to help troubleshoot issues:
+- **Normal mode**: Shows validation results and errors.
+- **Debug mode**: Enabled with `ACTIONS_STEP_DEBUG=true`, provides detailed parsing information, similarity scores, and more.
 
-```markdown
-## Summary
-<!-- Provide a brief overview of your changes -->
+---
 
-## JIRA Ticket
-<!-- Add your JIRA ticket reference here -->
+## Examples
 
-## Type of Change
-<!-- Select relevant options by adding [x] -->
-- [ ] Bug fix (non-breaking change that fixes an issue)
-- [ ] New feature (non-breaking change that adds functionality)
-- [ ] Breaking change (fix or feature with breaking changes)
-- [ ] Documentation update
-- [ ] Performance improvement
-- [ ] Code refactor
-- [ ] Test update
-- [ ] Build/CI change
-- [ ] Other (please describe):
+### Comprehensive Configuration
 
-## Testing
-<!-- Describe the tests you've added or modified -->
-### Added/Modified Tests
-- [ ] Unit tests
-- [ ] Integration tests
-- [ ] E2E tests
-
-### Test Instructions
-<!-- How can others test your changes? -->
-
-## Screenshots/Videos
-<!-- If applicable, add screenshots or videos to help explain your changes -->
-
-## Technical Details
-<!-- Add any technical details that reviewers should know about -->
-- Implementation approach:
-- Dependencies added/removed:
-- Database changes:
-- API changes:
-
-## Checklist
-<!-- Mark completed items with [x] -->
-- [ ] I have tested these changes locally
-- [ ] I have updated the documentation
-- [ ] I have added/updated tests
-- [ ] I have checked for breaking changes
-- [ ] My changes follow our coding standards
-- [ ] I have considered security implications
-
-## Additional Notes
-<!-- Add any additional context or notes for reviewers -->
-```
-
-Template Structure Enforcement
-------------------------------
-
-When using `enforce-template: 'true'`, the action fetches your repository's PR template and validates the PR description against it. This ensures that:
-
-1. All required sections from the template are present in the PR description
-2. Sections aren't empty or containing placeholder text like "TODO" or "Fill this in"
-3. The overall structure follows your team's standardized format
-
-The action doesn't require that every section from the template be present, only those specified in the `required-sections` parameter. This allows for comprehensive templates with optional sections while only enforcing the critical ones.
-
-For example, if your template has 8 sections but you only specify 3 in `required-sections`, contributors can omit the other 5 sections if they're not relevant to that particular PR.
-
-When `enforce-template: 'false'`, the action falls back to a simpler check that just looks for the required section headings in the PR description without comparing against the template structure.
-
-Task List Validation
---------------------
-
-When using `require-task-completion: 'true'`, the action enforces that at least one task list item in each section is checked. This is useful for ensuring that contributors have completed necessary steps before submitting a PR.
-
-For example, a checklist section:
-
-```markdown
-## Checklist
-- [x] I have tested these changes locally
-- [ ] I have updated the documentation accordingly
-- [ ] My changes generate no new warnings
-```
-
-If this section has at least one item checked, it passes validation.
-
-Examples
---------
-
-### Recommended
-This configuration provides comprehensive PR validation by:
-- Ensuring required sections (`Summary`, `Changes`, `Testing`) are present and complete
-- Validating that PR titles include a JIRA ticket in the format of `PROJECT-123`
-- Skipping validation for automation bots like Dependabot and GitHub Actions
-- Requiring contributors to check at least one task list item in each section (confirming they've completed necessary steps)
-- Enforcing the repository's PR template structure
-- Labeling non-compliant PRs with "needs-more-info" for easy identification
+This configuration provides robust PR validation:
 
 ```yaml
-- uses: rohitjmathew/pr-template-enforcer-action@main
+- uses: rohitjmathew/pr-template-enforcer@v1
   with:
     github-token: ${{ secrets.GITHUB_TOKEN }}
     required-sections: '["## Summary", "## Changes", "## Testing"]'
-    jira-pattern: ^[A-Z]+-\d+
+    jira-pattern: '^[A-Z]+-\d+'
     skip-users: '["dependabot[bot]"]'
     skip-service-accounts: '["github-actions[bot]"]'
     require-task-completion: 'true'
     enforce-template: 'true'
-    label-name: needs-more-info
+    label-name: 'needs-more-info'
 ```
 
-### Basic Configuration
+### Minimal Configuration
 
-A minimal configuration that uses default settings to enforce basic PR template validation:
+A basic configuration using default settings:
 
 ```yaml
-- uses: rohitjmathew/pr-template-enforcer-action@main
+- uses: rohitjmathew/pr-template-enforcer@v1
   with:
     github-token: ${{ secrets.GITHUB_TOKEN }}
 ```
 
-When using this basic configuration, the action will:
-
-- Check for required sections "Summary", "Changes", and "Testing"
-- Validate JIRA ticket patterns in PR titles using the pattern [A-Z]+-\d+
-- Skip validation for common bot accounts
-- Apply the "needs-description" label to non-compliant PRs
-- Enforce the repository's PR template structure
-- Not require task list completion
-
-### With JIRA Ticket Validation
-
-This configuration validates that PR titles contain a JIRA ticket reference matching the specified pattern:
+### Custom JIRA Ticket Validation
 
 ```yaml
-- uses: rohitjmathew/pr-template-enforcer-action@main
+- uses: rohitjmathew/pr-template-enforcer@v1
   with:
     github-token: ${{ secrets.GITHUB_TOKEN }}
     jira-pattern: 'PROJ-\d+'
 ```
 
-### With Custom Required Sections
-
-This configuration specifies which sections must be present in all PR descriptions:
+### Skip Validation for Service Accounts
 
 ```yaml
-- uses: rohitjmathew/pr-template-enforcer-action@main
-  with:
-    github-token: ${{ secrets.GITHUB_TOKEN }}
-    required-sections: '["## Summary", "## Testing", "## Checklist"]'
-```
-
-### With Task List Enforcement
-
-This configuration specifies which sections must be present in all PR descriptions:
-
-```yaml
-- uses: rohitjmathew/pr-template-enforcer-action@main
-  with:
-    github-token: ${{ secrets.GITHUB_TOKEN }}
-    require-task-completion: 'true'
-```
-
-### With Template Enforcement Disabled
-
-This configuration skips checking against your repository's PR template and simply verifies that the required sections are present:
-
-```yaml
-- uses: rohitjmathew/pr-template-enforcer-action@main
-  with:
-    github-token: ${{ secrets.GITHUB_TOKEN }}
-    required-sections: '["## Summary", "## Testing"]'
-    enforce-template: 'false'
-```
-
-### Skipping Service Accounts
-
-This configuration exempts automated bot accounts from validation:
-
-```yaml
-- uses: rohitjmathew/pr-template-enforcer-action@main
+- uses: rohitjmathew/pr-template-enforcer@v1
   with:
     github-token: ${{ secrets.GITHUB_TOKEN }}
     skip-service-accounts: '["bot", "dependabot", "renovate", "github-actions"]'
 ```
 
-Contributing
-------------
+---
 
-Contributions are welcome! Please open an issue or submit a pull request for any enhancements or bug fixes.
+## License
+
+This project is licensed under the [MIT License](LICENSE).

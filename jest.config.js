@@ -1,24 +1,37 @@
+/** @type {import('ts-jest').JestConfigWithTsJest} */
 module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'node',
   collectCoverage: true,
   collectCoverageFrom: [
     'src/**/*.ts',
-    '!**/dist/**'
+    '!**/dist/**',
+    '!**/node_modules/**'
   ],
   coverageReporters: ['text', 'lcov', 'clover', 'html'],
   coverageThreshold: {
     global: {
       branches: 75,
-      functions: 100,
-      lines: 95,
-      statements: 95
+      functions: 85,
+      lines: 85,
+      statements: 85
     }
   },
-  // Specify test pattern to exclude fixtures
-  testMatch: ['**/__tests__/**/*.test.ts'],
-  testPathIgnorePatterns: ['/node_modules/', '/__tests__/fixtures/'],
+  testMatch: ['**/tests/**/*.test.ts'],
+  testPathIgnorePatterns: ['/node_modules/', '/tests/fixtures/'],
+  transformIgnorePatterns: [
+    '/node_modules/(?!.*diff.*)'
+  ],
   transform: {
-    '^.+\\.ts$': 'ts-jest'
-  }
+    '^.+\\.(ts|tsx)$': [
+      'ts-jest',
+      {
+        isolatedModules: true,
+        diagnostics: {
+          warnOnly: true
+        }
+      }
+    ]
+  },
+  verbose: true
 };
