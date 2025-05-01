@@ -7,8 +7,7 @@
     "build": "tsc",
     "test": "jest --coverage",
     "test:watch": "jest --watch",
-    "lint": "eslint src/**/*.ts",
-    "integration-test": "node integration-tests/run-tests.js"
+    "lint": "eslint src/**/*.ts"
   },
   "keywords": [
     "github",

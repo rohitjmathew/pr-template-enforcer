@@ -63,7 +63,7 @@ function run() {
             const jiraPattern = core.getInput('jira-pattern') || '';
             const labelName = core.getInput('label-name') || 'invalid-template';
             const enforceTemplate = core.getBooleanInput('enforce-template') || false;
-            const requireTaskCompletion = core.getBooleanInput('require-task-completion') || false;
+            const requireTaskCompletion = core.getBooleanInput('require-task-completion');
             // Initialize GitHub API handler
             const githubApi = new github_api_1.GitHubApi(token, labelName);
             // Check if user should be skipped
@@ -84,13 +84,13 @@ function run() {
                     core.warning('No PR template found in repository. Will check for required sections only.');
                 }
             }
-            // Initialize and run checker
             const templateChecker = new template_checker_1.TemplateChecker({
                 requiredSections,
                 jiraPattern,
                 template: enforceTemplate ? template : null,
                 requireTaskListsCompletion: requireTaskCompletion
             });
+            // Make sure validation results are properly processed
             const validationResult = templateChecker.validateDescription(pullRequest.body || '', pullRequest.title || '');
             if (!validationResult.isValid) {
                 yield githubApi.handleFailure(pullRequest.number, validationResult);
