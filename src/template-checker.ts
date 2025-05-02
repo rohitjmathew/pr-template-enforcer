@@ -1,4 +1,5 @@
 import { validateAgainstTemplate } from './utils/template-parser';
+import { TEMPLATE_CHECKER_MESSAGES } from './constants';
 
 interface TemplateCheckerOptions {
     requiredSections: string[];
@@ -35,14 +36,14 @@ export class TemplateChecker {
             this.requiredSections,
             this.requireTaskListsCompletion
         );
-        
+
         errors.push(...templateErrors);
 
         // Validate JIRA ticket reference in title if pattern is provided
         if (this.jiraPattern && this.jiraPattern.trim() !== '') {
             const jiraRegex = new RegExp(this.jiraPattern);
             if (!jiraRegex.test(title)) {
-                errors.push(`PR title does not contain a valid JIRA ticket reference. Expected pattern: ${this.jiraPattern}`);
+                errors.push(TEMPLATE_CHECKER_MESSAGES.INVALID_JIRA_TICKET.replace('%s', this.jiraPattern));
             }
         }
 
