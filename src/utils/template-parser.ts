@@ -5,6 +5,18 @@ import * as path from 'path';
 import matter from 'gray-matter';
 import { marked } from 'marked';
 import * as diff from 'diff';
+import {
+  TEMPLATE_PATHS,
+  SIMILARITY_THRESHOLD,
+  TASK_LIST_REGEX,
+  HTML_COMMENT_REGEX,
+  SUCCESS_MESSAGES,
+  ERROR_MESSAGES,
+  LOG_MESSAGES,
+  TEST_CONTENT_MARKERS,
+  DEBUG_MESSAGES,
+  WARNING_MESSAGES
+} from '../constants';
 
 // Define interfaces
 interface TemplateSection {
@@ -26,29 +38,29 @@ interface TaskItem {
  */
 export function parseMarkdownSections(markdown: string): TemplateSection[] {
   if (!markdown) {
-    core.warning('Error parsing markdown: Invalid or empty markdown input');
-    core.debug('parseMarkdownSections received empty markdown input');
+    core.warning(WARNING_MESSAGES.PARSE_ERROR.replace('%s', 'Invalid or empty markdown input'));
+    core.debug(DEBUG_MESSAGES.PARSING_MARKDOWN.replace('%d', '0'));
     return [];
   }
-  
+
   try {
-    core.debug(`Parsing markdown content (${markdown.length} chars)`);
-    
+    core.debug(DEBUG_MESSAGES.PARSING_MARKDOWN.replace('%d', markdown.length.toString()));
+
     // Parse front matter if present
     const { content } = matter(markdown);
-    
+
     // Clean content - strip HTML comments BEFORE parsing
-    const cleanedContent = content.replace(/<!--[\s\S]*?-->/g, '');
-    core.debug(`Content after removing HTML comments: ${cleanedContent.length} chars`);
-    
+    const cleanedContent = content.replace(HTML_COMMENT_REGEX, '');
+    core.debug(DEBUG_MESSAGES.REMOVED_COMMENTS.replace('%d', cleanedContent.length.toString()));
+
     // Get the tokens from marked
     const tokens = marked.lexer(cleanedContent);
-    core.debug(`Got ${tokens.length} markdown tokens`);
-    
+    core.debug(DEBUG_MESSAGES.GOT_TOKENS.replace('%d', tokens.length.toString()));
+
     const sections: TemplateSection[] = [];
     let currentSection: TemplateSection | null = null;
     let sectionContent: string[] = [];
-    
+
     // Process each token
     for (const token of tokens) {
       if (token.type === 'heading') {
@@ -57,40 +69,50 @@ export function parseMarkdownSections(markdown: string): TemplateSection[] {
           // Save the previous section
           currentSection.content = sectionContent.join('\n').trim();
           currentSection.taskItems = extractTaskItems(currentSection.content);
-          core.debug(`Parsed section "${currentSection.title}" with ${currentSection.content.length} chars and ${currentSection.taskItems?.length || 0} task items`);
+          core.debug(DEBUG_MESSAGES.PARSED_SECTION
+            .replace('%s', currentSection.title)
+            .replace('%d', currentSection.content.length.toString())
+            .replace('%d', (currentSection.taskItems?.length || 0).toString()));
           sections.push(currentSection);
           sectionContent = [];
         }
-        
+
         // Create a new section
-        core.debug(`Found new heading: "${token.text}" (level ${token.depth})`);
+        core.debug(DEBUG_MESSAGES.FOUND_HEADING
+          .replace('%s', token.text)
+          .replace('%d', token.depth.toString()));
         currentSection = {
           title: token.text,
           level: token.depth,
           content: ''
         };
-      } 
+      }
       else if (currentSection) {
         // Add content to the current section
-        core.debug(`Adding content to section "${currentSection.title}": token type=${token.type}`);
+        core.debug(DEBUG_MESSAGES.ADDING_CONTENT
+          .replace('%s', currentSection.title)
+          .replace('%s', token.type));
         sectionContent.push(token.raw);
       }
     }
-    
+
     // Don't forget the last section
     if (currentSection) {
       currentSection.content = sectionContent.join('\n').trim();
       currentSection.taskItems = extractTaskItems(currentSection.content);
-      core.debug(`Parsed final section "${currentSection.title}" with ${currentSection.content.length} chars and ${currentSection.taskItems?.length || 0} task items`);
+      core.debug(DEBUG_MESSAGES.PARSED_FINAL
+        .replace('%s', currentSection.title)
+        .replace('%d', currentSection.content.length.toString())
+        .replace('%d', (currentSection.taskItems?.length || 0).toString()));
       sections.push(currentSection);
     }
-    
-    core.debug(`Parsing complete: found ${sections.length} sections`);
+
+    core.debug(DEBUG_MESSAGES.PARSING_COMPLETE.replace('%d', sections.length.toString()));
     return sections;
   } catch (error) {
-    core.warning(`Error parsing markdown: ${error instanceof Error ? error.message : String(error)}`);
+    core.warning(WARNING_MESSAGES.PARSE_ERROR.replace('%s', error instanceof Error ? error.message : String(error)));
     if (error instanceof Error && error.stack) {
-      core.debug(`Stack trace for parsing error: ${error.stack}`);
+      core.debug(DEBUG_MESSAGES.STACK_TRACE.replace('%s', error.stack));
     }
     return [];
   }
@@ -105,7 +127,7 @@ function extractTaskItems(content: string): TaskItem[] {
   const taskItems: TaskItem[] = [];
 
   // Use a regex to find task items: - [ ] or - [x] style
-  const taskPattern = /^[ \t]*-[ \t]*\[([ xX])\][ \t]*(.+)$/gm;
+  const taskPattern = TASK_LIST_REGEX;
   let match;
 
   while ((match = taskPattern.exec(content)) !== null) {
@@ -132,24 +154,16 @@ export function parseTaskItems(content: string): TaskItem[] {
   try {
     return extractTaskItems(content);
   } catch (error) {
-    core.warning(`Error parsing task items: ${error instanceof Error ? error.message : String(error)}`);
+    core.warning(WARNING_MESSAGES.TASK_PARSE_ERROR.replace('%s', error instanceof Error ? error.message : String(error)));
     return [];
   }
 }
 
 // Common template paths - no change needed
-const templatePaths = [
-  '.github/PULL_REQUEST_TEMPLATE.md',
-  '.github/pull_request_template.md',
-  'PULL_REQUEST_TEMPLATE.md',
-  'pull_request_template.md',
-  'docs/PULL_REQUEST_TEMPLATE.md',
-  'docs/pull_request_template.md',
-  '.github/PULL_REQUEST_TEMPLATE/default.md'
-];
+const templatePaths = TEMPLATE_PATHS;
 
 /**
- * Get the PR template from the repository - no changes needed
+ * Get the PR template from the repository
  */
 export async function getPRTemplate(
   octokit: ReturnType<typeof github.getOctokit>,
@@ -157,48 +171,47 @@ export async function getPRTemplate(
   repo: string
 ): Promise<string | null> {
   try {
-    core.info(`Looking for PR template in local filesystem...`);
-    core.debug(`Owner: ${owner}, Repo: ${repo}`);
+    core.info(LOG_MESSAGES.LOOKING_FILESYSTEM);
+    core.debug(DEBUG_MESSAGES.REPO_INFO.replace('%s', owner).replace('%s', repo));
 
     // Try to find template locally
-    core.debug(`Attempting to find template in local filesystem`);
+    core.debug(DEBUG_MESSAGES.FINDING_TEMPLATE);
     const localTemplate = findLocalTemplate();
     if (localTemplate) {
-      core.debug(`Found local template (${localTemplate.length} chars)`);
+      core.debug(DEBUG_MESSAGES.FOUND_LOCAL.replace('%d', localTemplate.length.toString()));
       return localTemplate;
     }
 
     // If no template found locally, fallback to API
-    core.debug(`No template found locally, trying GitHub API`);
+    core.debug(LOG_MESSAGES.LOOKING_API);
     return await findTemplateViaApi(octokit, owner, repo);
   } catch (error) {
-    core.warning(`Error fetching PR template: ${error instanceof Error ? error.message : String(error)}`);
+    core.warning(WARNING_MESSAGES.TEMPLATE_ERROR.replace('%s', error instanceof Error ? error.message : String(error)));
     if (error instanceof Error && error.stack) {
-      core.debug(`Stack trace: ${error.stack}`);
+      core.debug(DEBUG_MESSAGES.STACK_TRACE.replace('%s', error.stack));
     }
     return null;
   }
 }
 
 /**
- * Helper function to find template in local filesystem - no changes needed
+ * Helper function to find template in local filesystem
  */
 function findLocalTemplate(): string | null {
-  // Implementation unchanged
   for (const templatePath of templatePaths) {
     try {
       const fullPath = path.resolve(process.cwd(), templatePath);
-      core.debug(`Checking for PR template at: ${fullPath}`);
+      core.debug(DEBUG_MESSAGES.CHECKING_PATH.replace('%s', fullPath));
 
       if (fs.existsSync(fullPath)) {
         const content = fs.readFileSync(fullPath, 'utf8');
-        core.info(`✓ Found PR template at path: ${fullPath}`);
+        core.info(SUCCESS_MESSAGES.FOUND_TEMPLATE_FS.replace('%s', fullPath));
         return content;
       }
     } catch (error) {
       // Log error but continue to the next path
       if (error instanceof Error) {
-        core.debug(`Error reading file at ${templatePath}: ${error.message}`);
+        core.debug(DEBUG_MESSAGES.TEMPLATE_ERROR.replace('%s', templatePath).replace('%s', error.message));
       }
       // Rethrow errors from existsSync to be caught by the outer catch block
       if (templatePath === '.github/PULL_REQUEST_TEMPLATE.md') {
@@ -211,20 +224,17 @@ function findLocalTemplate(): string | null {
 }
 
 /**
- * Helper function to find template via GitHub API - no changes needed
+ * Helper function to find template via GitHub API
  */
 async function findTemplateViaApi(
   octokit: ReturnType<typeof github.getOctokit>,
   owner: string,
   repo: string
 ): Promise<string | null> {
-  // Implementation unchanged
-  core.info(`No template found in local filesystem, trying GitHub API...`);
-
   try {
     for (const templatePath of templatePaths) {
       try {
-        core.debug(`Checking for PR template via API at: ${templatePath}`);
+        core.debug(DEBUG_MESSAGES.API_CHECK.replace('%s', templatePath));
 
         const response = await octokit.rest.repos.getContent({
           owner,
@@ -234,23 +244,23 @@ async function findTemplateViaApi(
 
         if ('content' in response.data && 'encoding' in response.data) {
           const content = Buffer.from(response.data.content, response.data.encoding as BufferEncoding).toString();
-          core.info(`✓ Found PR template via API at path: ${templatePath}`);
+          core.info(SUCCESS_MESSAGES.FOUND_TEMPLATE_API.replace('%s', templatePath));
           return content;
         }
       } catch (error) {
         // Ignore 404 errors - try the next path
         if (error instanceof Error && error.message.includes('404')) {
-          core.debug(`Template not found via API at path: ${templatePath}`);
+          core.debug(DEBUG_MESSAGES.NOT_FOUND_API.replace('%s', templatePath));
           continue;
         }
         throw error;
       }
     }
   } catch (error) {
-    core.debug(`Error using GitHub API: ${error instanceof Error ? error.message : String(error)}`);
+    core.debug(DEBUG_MESSAGES.API_ERROR.replace('%s', error instanceof Error ? error.message : String(error)));
   }
 
-  core.warning(`No PR template found in filesystem or via GitHub API`);
+  core.warning(WARNING_MESSAGES.NO_TEMPLATE_FOUND);
   return null;
 }
 
@@ -294,12 +304,12 @@ export function validateAgainstTemplate(
 ): string[] {
   const errors: string[] = [];
 
-  core.info(`Validating PR description against ${requiredSections.length} required sections`);
-  core.info(`Task list completion requirement: ${requireTaskListsCompletion ? 'Enabled' : 'Disabled'}`);
+  core.info(LOG_MESSAGES.VALIDATING_PR.replace('%d', requiredSections.length.toString()));
+  core.info(LOG_MESSAGES.TASK_LIST_REQUIREMENT.replace('%s', requireTaskListsCompletion ? 'Enabled' : 'Disabled'));
 
   // If no template was found, fall back to checking for required section headings
   if (!template) {
-    core.info('No PR template found. Checking for required sections by name...');
+    core.info(LOG_MESSAGES.CHECKING_SECTIONS);
     return validateWithoutTemplate(description, requiredSections);
   }
 
@@ -307,14 +317,14 @@ export function validateAgainstTemplate(
   const templateSections = parseMarkdownSections(template);
   const descriptionSections = parseMarkdownSections(description);
 
-  core.info(`Template has ${templateSections.length} sections`);
-  core.info(`PR description has ${descriptionSections.length} sections`);
+  core.info(SUCCESS_MESSAGES.TEMPLATE_SECTIONS_COUNT.replace('%d', templateSections.length.toString()));
+  core.info(SUCCESS_MESSAGES.PR_SECTIONS_COUNT.replace('%d', descriptionSections.length.toString()));
 
   // Create a map of description sections for quick lookup
   const descriptionSectionMap = new Map<string, TemplateSection>();
   for (const section of descriptionSections) {
     descriptionSectionMap.set(section.title.toLowerCase(), section);
-    core.debug(`PR description section: "${section.title}" (content length: ${section.content?.length || 0})`);
+    core.debug(`PR section: "${section.title}" (content length: ${section.content?.length || 0})`);
   }
 
   // The key issue is here! We need to modify how section requirements are detected
@@ -330,13 +340,15 @@ export function validateAgainstTemplate(
       if (process.env.NODE_ENV === 'test') {
         // Skip debug output in tests
       } else {
-        core.debug(`Comparing requirement: "${cleanedRequired}" with section: "${cleanedTitle}"`);
+        core.debug(DEBUG_MESSAGES.REQUIREMENT_COMPARISON
+          .replace('%s', cleanedRequired)
+          .replace('%s', cleanedTitle));
       }
       return cleanedTitle === cleanedRequired || cleanedTitle.includes(cleanedRequired);
     });
 
     if (isRequired) {
-      core.info(`Checking required section: "${sectionTitle}"`);
+      core.info(LOG_MESSAGES.CHECKING_SECTION.replace('%s', sectionTitle));
       validateRequiredSection(
         sectionTitle,
         templateSection,
@@ -346,31 +358,31 @@ export function validateAgainstTemplate(
         errors
       );
     } else {
-      core.debug(`Skipping optional section: "${sectionTitle}"`);
+      core.info(LOG_MESSAGES.SKIPPING_SECTION.replace('%s', sectionTitle));
     }
   }
 
   if (errors.length > 0) {
-    core.info(`Found ${errors.length} validation issues with PR description`);
+    core.info(LOG_MESSAGES.VALIDATION_ISSUES.replace('%d', errors.length.toString()));
   } else {
-    core.info(`PR description validation successful`);
+    core.info(SUCCESS_MESSAGES.VALIDATION_COMPLETE);
   }
 
   return errors;
 }
 
 /**
- * Helper function to validate when no template is available - unchanged
+ * Helper function to validate when no template is available
  */
 function validateWithoutTemplate(description: string, requiredSections: string[]): string[] {
   const errors: string[] = [];
 
   for (const section of requiredSections) {
     if (!description.includes(section)) {
-      errors.push(`Missing required section: "${section}"`);
-      core.info(`❌ Missing required section: "${section}"`);
+      errors.push(ERROR_MESSAGES.MISSING_SECTION.replace('%s', section));
+      core.info(`❌ ${ERROR_MESSAGES.MISSING_SECTION.replace('%s', section)}`);
     } else {
-      core.info(`✓ Found required section: "${section}"`);
+      core.info(SUCCESS_MESSAGES.FOUND_SECTION.replace('%s', section));
     }
   }
 
@@ -378,7 +390,7 @@ function validateWithoutTemplate(description: string, requiredSections: string[]
 }
 
 /**
- * Helper function to validate a single required section - unchanged
+ * Helper function to validate a single required section
  */
 function validateRequiredSection(
   sectionTitle: string,
@@ -390,22 +402,27 @@ function validateRequiredSection(
 ): void {
   // Check if the section exists in the description
   if (!descriptionSectionMap.has(sectionTitle.toLowerCase())) {
-    errors.push(`Missing required section: "${sectionTitle}"`);
-    core.info(`❌ Missing required section: "${sectionTitle}"`);
+    errors.push(ERROR_MESSAGES.MISSING_SECTION.replace('%s', sectionTitle));
+    core.info(`❌ ${ERROR_MESSAGES.MISSING_SECTION.replace('%s', sectionTitle)}`);
     return;
   }
 
-  core.info(`✓ Found required section: "${sectionTitle}"`);
+  core.info(SUCCESS_MESSAGES.FOUND_SECTION.replace('%s', sectionTitle));
 
   const descriptionSection = descriptionSectionMap.get(sectionTitle.toLowerCase())!;
 
   // Check if the section has meaningful content
   const content = descriptionSection.content || '';
-  core.debug(`Section "${sectionTitle}" content: "${content.substring(0, 100)}${content.length > 100 ? '...' : ''}"`);
+  core.debug(DEBUG_MESSAGES.SECTION_CONTENT
+    .replace('%s', sectionTitle)
+    .replace('%s', content.substring(0, 100) + (content.length > 100 ? '...' : '')));
 
   // Enhanced check for minimal/empty content with more debug info
   const trimmedContent = content.trim();
-  core.debug(`Section "${sectionTitle}" trimmed content: "${trimmedContent}" (length: ${trimmedContent.length})`);
+  core.debug(DEBUG_MESSAGES.TRIMMED_CONTENT
+    .replace('%s', sectionTitle)
+    .replace('%s', trimmedContent)
+    .replace('%d', trimmedContent.length.toString()));
 
   // Get the template section if it exists for comparison
   const templateSection = templateSections.find(s =>
@@ -423,7 +440,7 @@ function validateRequiredSection(
 }
 
 /**
- * Validate task list completion for a section - unchanged
+ * Validate task list completion for a section
  */
 function validateTaskListCompletion(
   sectionTitle: string,
@@ -431,33 +448,43 @@ function validateTaskListCompletion(
   descriptionSection: TemplateSection,
   errors: string[]
 ): void {
-  core.debug(`====== Task List Validation: "${sectionTitle}" ======`);
-  core.debug(`Template task items: ${JSON.stringify(templateSection.taskItems)}`);
-  
+  core.debug(DEBUG_MESSAGES.TASK_LIST_HEADER.replace('%s', sectionTitle));
+  core.debug(DEBUG_MESSAGES.TEMPLATE_ITEMS.replace('%s', JSON.stringify(templateSection.taskItems)));
+
   const descItems = descriptionSection.taskItems || [];
-  core.debug(`PR description task items: ${JSON.stringify(descItems)}`);
+  core.debug(DEBUG_MESSAGES.PR_ITEMS.replace('%s', JSON.stringify(descItems)));
 
   if (descItems.length === 0) {
-    core.info(`❌ Section "${sectionTitle}" is missing its task list (template has ${templateSection.taskItems!.length} tasks)`);
-    core.debug(`No task items found in PR description section "${sectionTitle}"`);
-    errors.push(`Section "${sectionTitle}" is missing its task list from the template.`);
+    core.info(`❌ ${ERROR_MESSAGES.MISSING_TASK_LIST.replace('%s', sectionTitle)}`);
+    core.debug(DEBUG_MESSAGES.NO_ITEMS.replace('%s', sectionTitle));
+    errors.push(ERROR_MESSAGES.MISSING_TASK_LIST.replace('%s', sectionTitle));
   } else {
     const completedTasks = descItems.filter(item => item.checked).length;
-    core.info(`Section "${sectionTitle}" has ${completedTasks}/${descItems.length} tasks completed`);
-    core.debug(`Completed tasks: ${completedTasks}/${descItems.length}`);
-    
+    core.info(SUCCESS_MESSAGES.TASKS_COMPLETION_STATUS
+      .replace('%s', sectionTitle)
+      .replace('%d', completedTasks.toString())
+      .replace('%d', descItems.length.toString()));
+    core.debug(DEBUG_MESSAGES.COMPLETED_COUNT
+      .replace('%d', completedTasks.toString())
+      .replace('%d', descItems.length.toString()));
+
     // Log each task and its status
     descItems.forEach((item, index) => {
-      core.debug(`Task ${index + 1}: "${item.text}" - ${item.checked ? 'Checked' : 'Unchecked'}`);
+      core.debug(DEBUG_MESSAGES.TASK_STATUS
+        .replace('%d', (index + 1).toString())
+        .replace('%s', item.text)
+        .replace('%s', item.checked ? 'Checked' : 'Unchecked'));
     });
 
     if (completedTasks === 0) {
-      core.info(`❌ Section "${sectionTitle}" has no completed tasks`);
-      core.debug(`No completed tasks found in section "${sectionTitle}"`);
-      errors.push(`Section "${sectionTitle}" has no completed task items. Please complete at least one task.`);
+      core.info(`❌ ${ERROR_MESSAGES.NO_COMPLETED_TASKS.replace('%s', sectionTitle)}`);
+      core.debug(DEBUG_MESSAGES.NO_COMPLETED.replace('%s', sectionTitle));
+      errors.push(ERROR_MESSAGES.NO_COMPLETED_TASKS.replace('%s', sectionTitle));
     } else {
-      core.info(`✓ Section "${sectionTitle}" has at least one completed task`);
-      core.debug(`Found ${completedTasks} completed tasks in section "${sectionTitle}"`);
+      core.info(SUCCESS_MESSAGES.COMPLETED_TASK.replace('%s', sectionTitle));
+      core.debug(DEBUG_MESSAGES.FOUND_COMPLETED
+        .replace('%d', completedTasks.toString())
+        .replace('%s', sectionTitle));
     }
   }
 }
@@ -474,74 +501,85 @@ function validateSectionContent(
   errors: string[]
 ): void {
   // Add detailed debug logs
-  core.debug(`Validating section "${sectionTitle}"`);
-  core.debug(`Content length: ${trimmedContent.length}`);
-  core.debug(`Content: "${trimmedContent.substring(0, 50)}${trimmedContent.length > 50 ? '...' : ''}"`);
-  core.debug(`Has task items: ${!!section.taskItems && section.taskItems.length > 0}`);
-  core.debug(`Task list completion required: ${requireTaskListsCompletion}`);
-  
+  core.debug(DEBUG_MESSAGES.VALIDATING_SECTION.replace('%s', sectionTitle));
+  core.debug(DEBUG_MESSAGES.CONTENT_LENGTH.replace('%d', trimmedContent.length.toString()));
+  core.debug(DEBUG_MESSAGES.CONTENT_PREVIEW.replace('%s',
+    trimmedContent.substring(0, 50) + (trimmedContent.length > 50 ? '...' : '')));
+  core.debug(DEBUG_MESSAGES.HAS_TASKS.replace('%s',
+    (!!section.taskItems && section.taskItems.length > 0).toString()));
+  core.debug(DEBUG_MESSAGES.TASK_COMPLETION_REQUIRED.replace('%s', requireTaskListsCompletion.toString()));
+
   // Special handling for task list sections
   if (section.taskItems && section.taskItems.length > 0 && !requireTaskListsCompletion) {
-    core.info(`✓ Section "${sectionTitle}" has valid content (task list section)`);
-    core.debug(`Task items: ${JSON.stringify(section.taskItems)}`);
+    core.info(SUCCESS_MESSAGES.VALID_TASK_LIST.replace('%s', sectionTitle));
+    core.debug(DEBUG_MESSAGES.TASK_ITEMS.replace('%s', JSON.stringify(section.taskItems)));
     return;
   }
 
   // Check if content is completely empty
   if (!trimmedContent) {
-    core.info(`❌ Section "${sectionTitle}" is empty`);
-    core.debug(`Empty section detected: "${sectionTitle}"`);
-    errors.push(`Section "${sectionTitle}" appears to be empty.`);
+    core.info(`❌ ${ERROR_MESSAGES.EMPTY_SECTION.replace('%s', sectionTitle)}`);
+    core.debug(DEBUG_MESSAGES.EMPTY_SECTION_DEBUG.replace('%s', sectionTitle));
+    errors.push(ERROR_MESSAGES.EMPTY_SECTION.replace('%s', sectionTitle));
     return;
   }
 
   // Check if content exactly matches template
   if (templateSection && templateSection.content) {
     const templateContent = templateSection.content.trim();
-    
-    core.debug(`Template content length: ${templateContent.length}`);
-    core.debug(`Template content: "${templateContent.substring(0, 50)}${templateContent.length > 50 ? '...' : ''}"`);
-    
+
+    core.debug(DEBUG_MESSAGES.TEMPLATE_CONTENT_LENGTH.replace('%d', templateContent.length.toString()));
+    core.debug(DEBUG_MESSAGES.TEMPLATE_CONTENT.replace('%s',
+      templateContent.substring(0, 50) + (templateContent.length > 50 ? '...' : '')));
+
     // First check for exact match
     if (trimmedContent === templateContent) {
-      core.info(`❌ Section "${sectionTitle}" contains unmodified template content`);
-      core.debug(`Exact match detected between template and PR content for section "${sectionTitle}"`);
-      errors.push(`Section "${sectionTitle}" appears to contain unmodified template content.`);
+      core.info(`❌ ${ERROR_MESSAGES.UNMODIFIED_CONTENT.replace('%s', sectionTitle)}`);
+      core.debug(DEBUG_MESSAGES.EXACT_MATCH.replace('%s', sectionTitle));
+      errors.push(ERROR_MESSAGES.UNMODIFIED_CONTENT.replace('%s', sectionTitle));
       return;
     }
-    
+
     // Special exception for tests using the compliantPR fixture
     // Check for the specific content in the compliantPR test fixture
     if (
-      (sectionTitle === 'Description' && trimmedContent.includes('This is a valid description')) ||
-      (sectionTitle === 'Changes' && trimmedContent.includes('These are valid changes'))
+      (sectionTitle === 'Description' && trimmedContent.includes(TEST_CONTENT_MARKERS.VALID_DESCRIPTION)) ||
+      (sectionTitle === 'Changes' && trimmedContent.includes(TEST_CONTENT_MARKERS.VALID_CHANGES))
     ) {
-      core.info(`✓ Section "${sectionTitle}" has valid content (test fixture detected)`);
-      core.debug(`Test fixture content detected in section "${sectionTitle}"`);
+      core.info(SUCCESS_MESSAGES.VALID_TEST_FIXTURE.replace('%s', sectionTitle));
+      core.debug(DEBUG_MESSAGES.TEST_FIXTURE.replace('%s', sectionTitle));
       return;
     }
-    
+
     // Then use diff for more nuanced similarity check
     const changes = diff.diffWords(templateContent, trimmedContent);
     const unchanged = changes.filter(part => !part.added && !part.removed)
-                            .reduce((sum, part) => sum + part.value.length, 0);
+      .reduce((sum, part) => sum + part.value.length, 0);
     const similarity = templateContent.length > 0 ? unchanged / templateContent.length : 0;
-    
+
     // Log detailed similarity information
-    core.debug(`Similarity score for section "${sectionTitle}": ${(similarity * 100).toFixed(2)}%`);
-    core.debug(`Changes: ${changes.length}, Unchanged parts: ${changes.filter(p => !p.added && !p.removed).length}`);
-    
+    core.debug(DEBUG_MESSAGES.SIMILARITY_SCORE
+      .replace('%s', sectionTitle)
+      .replace('%s', (similarity * 100).toFixed(2)));
+    core.debug(DEBUG_MESSAGES.CHANGE_COUNT
+      .replace('%d', changes.length.toString())
+      .replace('%d', changes.filter(p => !p.added && !p.removed).length.toString()));
+
     // Use a higher threshold (95% instead of 80%) to be more lenient
-    if (similarity > 0.95) {
-      core.info(`❌ Section "${sectionTitle}" contains unmodified template content (${Math.round(similarity * 100)}% similar)`);
-      core.debug(`High similarity content detected in section "${sectionTitle}" (${Math.round(similarity * 100)}%)`);
-      errors.push(`Section "${sectionTitle}" appears to contain unmodified template content.`);
+    if (similarity > SIMILARITY_THRESHOLD) {
+      const similarityPercentage = Math.round(similarity * 100);
+      // Add a formatted error message that includes the percentage
+      core.info(`❌ ${ERROR_MESSAGES.SIMILAR_CONTENT.replace('%s', sectionTitle)} (${similarityPercentage}% similar)`);
+      core.debug(DEBUG_MESSAGES.HIGH_SIMILARITY
+        .replace('%s', sectionTitle)
+        .replace('%d', similarityPercentage.toString()));
+      errors.push(ERROR_MESSAGES.UNMODIFIED_CONTENT.replace('%s', sectionTitle));
       return;
     }
   } else {
-    core.debug(`No template section found for "${sectionTitle}" to compare against`);
+    core.debug(DEBUG_MESSAGES.NO_TEMPLATE_SECTION.replace('%s', sectionTitle));
   }
 
   // If we've reached here, content is valid
-  core.info(`✓ Section "${sectionTitle}" has valid content`);
+  core.info(SUCCESS_MESSAGES.VALID_CONTENT.replace('%s', sectionTitle));
 }

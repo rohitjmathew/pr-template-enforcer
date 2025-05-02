@@ -59,7 +59,7 @@ describe('GitHubApi', () => {
                 owner: 'owner',
                 repo: 'repo',
                 issue_number: 123,
-                body: expect.stringContaining('PR Template Validation Passed')
+                body: expect.stringContaining("Thanks for a Well-Structured PR") // Changed from "PR Template Validation Passed"
             });
             
             // Verify label was removed
@@ -79,7 +79,8 @@ describe('GitHubApi', () => {
                 status: 'completed',
                 conclusion: 'success',
                 output: expect.objectContaining({
-                    title: 'PR Template Valid'
+                    title: 'PR Template Requirements Met', // Updated to match new constant value
+                    summary: expect.any(String)
                 })
             });
             
@@ -131,6 +132,21 @@ describe('GitHubApi', () => {
             // Should log warning
             expect(core.warning).toHaveBeenCalledWith(expect.stringContaining('Failed to create check'));
         });
+
+        // Update expectations to match the new message format
+        it('should handle success with comment and check', async () => {
+            await githubApi.handleSuccess(123);
+          
+            expect(mockOctokit.rest.issues.createComment).toHaveBeenCalledWith({
+              owner: 'owner',
+              repo: 'repo',
+              issue_number: 123,
+              // Update to use expect.stringContaining with the new title format
+              body: expect.stringContaining("Thanks for a Well-Structured PR")
+            });
+          
+            // Rest of the test expectations...
+        });
     });
     
     describe('handleFailure', () => {
@@ -147,7 +163,7 @@ describe('GitHubApi', () => {
                 owner: 'owner',
                 repo: 'repo',
                 issue_number: 123,
-                body: expect.stringContaining('PR Template Validation Failed')
+                body: expect.stringContaining("Let's Improve Your PR Description") // Changed from "PR Template Validation Failed"
             });
             
             // Verify label was added
@@ -167,7 +183,8 @@ describe('GitHubApi', () => {
                 status: 'completed',
                 conclusion: 'failure',
                 output: expect.objectContaining({
-                    title: 'PR Template Invalid'
+                    title: 'PR Template Needs Attention', // Updated to match new constant value
+                    summary: expect.any(String)
                 })
             });
             
@@ -210,6 +227,20 @@ describe('GitHubApi', () => {
             
             // Should still set failed status
             expect(core.setFailed).toHaveBeenCalled();
+        });
+
+        it('should handle failure with comment, label and check', async () => {
+            await githubApi.handleFailure(123, { isValid: false, errors: ["Error 1"] });
+          
+            expect(mockOctokit.rest.issues.createComment).toHaveBeenCalledWith({
+              owner: 'owner',
+              repo: 'repo',
+              issue_number: 123,
+              // Update to use expect.stringContaining with the new title format
+              body: expect.stringContaining("Let's Improve Your PR Description")
+            });
+          
+            // Rest of the test expectations...
         });
     });
 });

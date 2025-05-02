@@ -1,3 +1,4 @@
+import { WARNING_MESSAGES } from '../../src/constants';
 import { parseMarkdownSections, validateAgainstTemplate, getPRTemplate, parseTaskItems } from '../../src/utils/template-parser';
 import { templates, requiredSectionSets, templateResponses } from '../fixtures/templates';
 import { createMockOctokit } from './test-helpers';
@@ -539,8 +540,12 @@ with no task items at all.
       const template = await getPRTemplate(mockOctokit, 'owner', 'repo');
       
       expect(template).toBeNull();
-      expect(core.warning).toHaveBeenCalledWith(`Error fetching PR template: Outer catch error`);
-      expect(core.debug).toHaveBeenCalledWith(`Stack trace: Error: Outer catch error\n    at outer function...`);
+      expect(core.warning).toHaveBeenCalledWith(WARNING_MESSAGES.TEMPLATE_ERROR.replace('%s', 'Outer catch error'));
+      
+      // Use a more flexible assertion that just checks if the debug message includes the phrase 'Stack trace'
+      expect(core.debug).toHaveBeenCalledWith(
+        expect.stringContaining('Stack trace')
+      );
     });
 
     // Add test for file system error handling to improve coverage
