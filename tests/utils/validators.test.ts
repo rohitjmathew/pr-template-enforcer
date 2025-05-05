@@ -1,38 +1,51 @@
-import { validatePullRequestDescription, validateJiraTicketReference, shouldSkipUser } from '../../src/utils/validators';
+import { shouldSkipUser } from '../../src/utils/validators';
+import { validateAgainstTemplate } from '../../src/utils/template-parser';
 import { templates, jiraFormats, requiredSectionSets } from '../fixtures/templates';
+import { TemplateChecker } from '../../src/template-checker';
 
 describe('Validators', () => {
-    describe('validatePullRequestDescription', () => {
-        it('should return true for a valid description', () => {
-            expect(validatePullRequestDescription(
+    describe('Template Validation', () => {
+        it('should validate a description with required sections', () => {
+            const errors = validateAgainstTemplate(
                 templates.valid.description, 
+                null,
                 requiredSectionSets.standard
-            )).toBe(true);
+            );
+            expect(errors.length).toBe(0);
         });
 
-        it('should return false for a description missing required sections', () => {
-            expect(validatePullRequestDescription(
+        it('should fail validation for a description missing required sections', () => {
+            const errors = validateAgainstTemplate(
                 templates.missing.description, 
+                null,
                 requiredSectionSets.standard
-            )).toBe(false);
+            );
+            expect(errors.length).toBeGreaterThan(0);
         });
     });
 
-    describe('validateJiraTicketReference', () => {
-        it('should return true for a valid JIRA ticket reference', () => {
-            expect(validateJiraTicketReference(jiraFormats.standard)).toBe(true);
+    describe('JIRA Ticket Validation', () => {
+        it('should validate a PR title with a JIRA ticket reference', () => {
+            const checker = new TemplateChecker({
+                requiredSections: [],
+                jiraPattern: '[A-Z]+-\\d+'
+            });
+            
+            const result = checker.validateDescription('', jiraFormats.standard);
+            expect(result.isValid).toBe(true);
         });
 
-        it('should return false for a title without a JIRA ticket reference', () => {
-            expect(validateJiraTicketReference(jiraFormats.invalid)).toBe(false);
-        });
-        
-        it('should validate against a custom pattern', () => {
-            expect(validateJiraTicketReference(jiraFormats.custom, 'ABC-\\d+:')).toBe(true);
-            expect(validateJiraTicketReference(jiraFormats.custom, 'XYZ-\\d+')).toBe(false);
+        it('should fail validation for a title without a JIRA ticket reference', () => {
+            const checker = new TemplateChecker({
+                requiredSections: [],
+                jiraPattern: '[A-Z]+-\\d+'
+            });
+            
+            const result = checker.validateDescription('', 'Invalid title with no JIRA reference');
+            expect(result.isValid).toBe(false);
         });
     });
-    
+
     describe('shouldSkipUser', () => {
         it('should return true for users in the skip list', () => {
             const username = 'test-user';

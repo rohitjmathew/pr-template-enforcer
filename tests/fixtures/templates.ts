@@ -90,17 +90,6 @@ Fixed bug in authentication flow.
     description: '## Summary\nProvide a brief description of the changes'  // Identical to template
   },
 
-  fillThisIn: {
-    template: `
-## Description
-Describe the changes.
-`,
-    description: `
-## Description
-Fill this in
-`
-  },
-
   withOptionalSections: {
     template: `
 ## Summary
@@ -143,29 +132,6 @@ This is the summary.
 `
   },
 
-  minimalContent: {
-    template: `
-## Summary
-Provide a brief summary of your changes
-
-## Details
-Provide detailed information
-
-## Testing
-Explain how you tested these changes
-`,
-    description: `
-## Summary
--
-
-## Details
-This section has valid content.
-
-## Testing
-   
-`
-  },
-
   markdownWithComments: `## Section 1
 <!-- This is a comment -->
 Content
@@ -204,11 +170,6 @@ More content<!-- Another comment -->`,
 This PR is ready for review.
 `
     }
-  },
-
-  uncheckedTasks: {
-    template: '## Checklist\n- [ ] Task 1\n- [ ] Task 2',
-    description: '## Checklist\n- [ ] Task 1\n- [ ] Task 2'  // No tasks checked
   },
 
   // Add templates for branch coverage tests

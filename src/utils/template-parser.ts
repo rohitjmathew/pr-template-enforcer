@@ -159,9 +159,6 @@ export function parseTaskItems(content: string): TaskItem[] {
   }
 }
 
-// Common template paths - no change needed
-const templatePaths = TEMPLATE_PATHS;
-
 /**
  * Get the PR template from the repository
  */
@@ -198,7 +195,7 @@ export async function getPRTemplate(
  * Helper function to find template in local filesystem
  */
 function findLocalTemplate(): string | null {
-  for (const templatePath of templatePaths) {
+  for (const templatePath of TEMPLATE_PATHS) {
     try {
       const fullPath = path.resolve(process.cwd(), templatePath);
       core.debug(DEBUG_MESSAGES.CHECKING_PATH.replace('%s', fullPath));
@@ -232,7 +229,7 @@ async function findTemplateViaApi(
   repo: string
 ): Promise<string | null> {
   try {
-    for (const templatePath of templatePaths) {
+    for (const templatePath of TEMPLATE_PATHS) {
       try {
         core.debug(DEBUG_MESSAGES.API_CHECK.replace('%s', templatePath));
 
@@ -262,30 +259,6 @@ async function findTemplateViaApi(
 
   core.warning(WARNING_MESSAGES.NO_TEMPLATE_FOUND);
   return null;
-}
-
-/**
- * Validate content with a simplified approach
- * @param content Content to validate
- * @param hasTaskItems Whether the section has task items
- * @returns Validation result
- */
-function validateContent(
-  content: string,
-  hasTaskItems: boolean
-): { isValid: boolean, reason: string } {
-  // Skip validation for task lists when not requiring completion
-  if (hasTaskItems) {
-    return { isValid: true, reason: "has valid content (task list)" };
-  }
-
-  // Simple check: is content completely empty?
-  const trimmedContent = content.trim();
-  if (!trimmedContent) {
-    return { isValid: false, reason: "is empty" };
-  }
-
-  return { isValid: true, reason: "has valid content" };
 }
 
 /**
@@ -324,7 +297,9 @@ export function validateAgainstTemplate(
   const descriptionSectionMap = new Map<string, TemplateSection>();
   for (const section of descriptionSections) {
     descriptionSectionMap.set(section.title.toLowerCase(), section);
-    core.debug(`PR section: "${section.title}" (content length: ${section.content?.length || 0})`);
+    core.debug(DEBUG_MESSAGES.PR_SECTION_DEBUG
+      .replace('%s', section.title)
+      .replace('%d', (section.content?.length || 0).toString()));
   }
 
   // The key issue is here! We need to modify how section requirements are detected
