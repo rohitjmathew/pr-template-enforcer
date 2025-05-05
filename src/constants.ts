@@ -107,6 +107,7 @@ export const DEBUG_MESSAGES = {
     TASK_LIST_HEADER: '====== Task List Validation: "%s" ======',
     TEMPLATE_ITEMS: 'Template task items: %s',
     PR_ITEMS: 'PR description task items: %s',
+    PR_SECTION_DEBUG: 'PR description section: "%s" (content length: %d)',
     NO_ITEMS: 'No task items found in PR description section "%s"',
     COMPLETED_COUNT: 'Completed tasks: %d/%d',
     TASK_STATUS: 'Task %d: "%s" - %s',
